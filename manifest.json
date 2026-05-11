@@ -1,0 +1,10 @@
+{
+	"id": "auto-templater",
+	"name": "Auto Templater",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "Плагин для автоматического добавления шаблонов в свежесозданные файлы",
+	"author": "Barmaglot-is-here",
+	"authorUrl": "https://github.com/Barmaglot-is-here",
+	"isDesktopOnly": false
+}
