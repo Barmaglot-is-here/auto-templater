@@ -1,70 +1,86 @@
-import {Plugin, MenuItem, TAbstractFile, TFolder, TFile} from 'obsidian';
-import {DEFAULT_SETTINGS, DateSorterPluginSettings, SettingTab} from "./settings";
+import {Plugin, MenuItem, TAbstractFile, TFolder, TFile, Notice, EventRef} from 'obsidian';
+import {DateSorterPluginSettings, SettingTab} from "./settings";
 import TemplateModule from 'template-module'
 import { SelectTemplateModal } from 'select-template-modal';
-
-type FoldderList = Record<string, string>;
+import PluginData, { FolderList } from 'plugin-data';
 
 export default class DateSorterPlugin extends Plugin {
-	private	data: Record<string, DateSorterPluginSettings | FoldderList>;
-	private templateModule: TemplateModule;
+	public data!: PluginData;
+	private templateModule!: TemplateModule;
+	private fileMenuEventRef: EventRef | null = null;
 
-	public get settings(): DateSorterPluginSettings {
-		return this.data.settings as DateSorterPluginSettings;
+	private get settings(): DateSorterPluginSettings {
+		return this.data.settings;
 	}
 
-	private get folderList(): FoldderList {
-		return this.data.folderList as FoldderList;
-	}
-
-	private set folderList(newValue: FoldderList) {
-		this.data.folderList = newValue;
+	private get folderList(): FolderList {
+		return this.data.folderList;
 	}
 
 	async onload() {
 		await this.loadPluginData();
-		
+
 		this.templateModule = new TemplateModule(this.folderList);
 
 		if (this.settings.showContextMenuOptions)
 			this.setupContextMenu();
 
 		this.setupEvents();
-
+		
 		this.addSettingTab(new SettingTab(this.app, this));
 	}
 
 	private async loadPluginData() {
-		const data 	= await this.loadData();
-		this.data 	= Object.assign({ settings: { ...DEFAULT_SETTINGS } }, data);
+		const data = await this.loadData();
 
-		if (!this.folderList)
-			this.folderList = {};
+		this.data = new PluginData(data ?? {});
 	}
 
-	public async savePluginData() {
-		await this.saveData(this.data);
+	private async savePluginData() {
+		await this.saveData({
+			settings: this.settings,
+			folderList: this.folderList
+		});
 	}
 
-	public setupContextMenu() {
-		this.registerEvent(			
-			this.app.workspace.on('file-menu', this.onFileMenuShow, this)
+	private setupContextMenu() {
+		if (this.fileMenuEventRef)
+			return;
+
+		this.registerEvent(
+			this.fileMenuEventRef = this.app.workspace.on(
+				'file-menu', 
+				this.onFileMenuShow, 
+				this)
 		);
 	}
 
-	public unsetupContextMenu() {
+	private unsetupContextMenu() {
+		if (!this.fileMenuEventRef)
+			return;
+
 		this.app.workspace.off('file-menu', this.onFileMenuShow)
+
+		this.fileMenuEventRef = null;
 	}
 
 	private setupEvents() {
-		this.registerEvent(
-			this.app.metadataCache.on('resolved', this.onFirstLoad, this)
-		);
+		this.app.workspace.onLayoutReady(() => {
+			this.registerEvent(
+				this.app.vault.on('create', file => {
+					if (file instanceof TFile) {
+						void this.onFileCreate(file);
+					}
+				})
+			);
+		});
 
 		this.registerEvent(
 			this.app.vault.on('delete', (file) => {
 				if (file instanceof TFolder)
-					this.onExcludeFolderClick(file.path);
+					this.data.excludeFolder(file.path);
+				else
+					this.onFileDelete(file.path);
 			}),
 		);
 
@@ -72,7 +88,27 @@ export default class DateSorterPlugin extends Plugin {
 			this.app.vault.on('rename', (file, oldPath) => {
 				if (file instanceof TFolder)
 					this.onFolderRename(oldPath, file.path);
+				else
+					this.onFileRename(oldPath, file.path);
 			}),
+		);
+
+		this.registerEvent(
+			this.data.on('show-context-menu-change', state => {
+				if (state) {
+					this.setupContextMenu();
+				}
+				else {
+					this.unsetupContextMenu();
+				}
+			},
+			this)
+		);
+
+		this.registerEvent(
+			this.data.on('folder-change', () => {
+				this.savePluginData();
+			})
 		);
 	}
 
@@ -85,7 +121,10 @@ export default class DateSorterPlugin extends Plugin {
 				item.setTitle('Прикрепить шаблон');
 				item.setIcon('calendar-plus');
 
-				item.onClick(() => this.onIncludeFolderClick(file.path));	
+				item.onClick(() => 
+					new SelectTemplateModal(this.app, templatePath => {
+						this.data.includeFolder(file.path, templatePath);
+					}).open());
 			};
 
 			menu.addItem(includeFolderMenuItem);				
@@ -95,49 +134,80 @@ export default class DateSorterPlugin extends Plugin {
 				item.setTitle('Открепить шаблон');
 				item.setIcon('calendar-minus');
 
-				item.onClick(() => this.onExcludeFolderClick(file.path));	
+				item.onClick(() => this.data.excludeFolder(file.path));
 			};
 
 			menu.addItem(excludeFolderMenuItem);
 		}
 	}
 
-	private onIncludeFolderClick(folderPath: string) {
-		new SelectTemplateModal(this.app, templatePath => {
-			this.folderList[folderPath] = templatePath;
-
-			this.savePluginData();
-		}).open();
-	}
-
-	private onExcludeFolderClick(folderPath: string) {
-		delete this.folderList[folderPath];
-
-		this.savePluginData();
-	}
-
 	private onFolderRename(oldPath: string, newPath: string) {
-		const value = this.folderList[oldPath] as string;
+		if (!(oldPath in this.folderList))
+			return;
+
+		const templatePath = this.folderList[oldPath] as string;
 
 		delete this.folderList[oldPath];
 
-		this.folderList[newPath] = value;
+		this.folderList[newPath] = templatePath;
 
 		this.savePluginData();
 	}
 
-	private onFirstLoad() {
-		this.registerEvent(
-			this.app.vault.on('create', file => {
-				if (file instanceof TFile)
-					this.onFileCreate(file);
-			}),
-		);
-		
-		this.app.metadataCache.off('resolved', this.onFirstLoad);
+	private onFileRename(oldPath: string, newPath: string) {
+		if (!this.hasTemplate(oldPath))
+			return;
+
+		this.onTemplateRename(oldPath, newPath);
 	}
 
-	private onFileCreate(file: TFile) {
-		this.templateModule.process(file);
+	private onTemplateRename(oldPath: string, newPath: string) {
+		Object.entries(this.folderList).forEach(([folderPath, templatePath]) => {
+			if (templatePath == oldPath) {
+				this.folderList[folderPath] = newPath;
+
+				new Notice("Обновлён путь до шаблона: " + newPath);
+
+				this.savePluginData();
+			}
+		});
+	}
+
+	private onFileDelete(path: string) {
+		if (!this.hasTemplate(path))
+			return;
+
+		this.onTemplateDelete(path);
+	}
+
+	private hasTemplate(path: string) : boolean {
+		return Object.values(this.folderList).includes(path);
+	} 
+
+	private onTemplateDelete(path: string) {
+		Object.entries(this.folderList).forEach(([folderPath, templatePath]) => {
+			if (templatePath == path) {
+				delete this.folderList[folderPath];
+
+				new Notice("Шаблон откреплён от папки: " + path);
+			}
+		});
+
+		this.savePluginData();
+	}
+
+	private async onFileCreate(file: TFile) {
+		if (file.extension !== 'md')
+			return;
+
+		try {
+			await this.templateModule.process(file);
+		} catch (error) {
+			console.error(
+				'Date Sorter: failed to process file',
+				file.path,
+				error
+			);
+		}
 	}
 }

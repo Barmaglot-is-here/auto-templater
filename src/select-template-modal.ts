@@ -1,4 +1,5 @@
 import { App, FuzzySuggestModal } from "obsidian";
+import { SEARCH_PLACEHOLDER } from "strings";
 
 export class SelectTemplateModal extends FuzzySuggestModal<string> {
 	onTemplateSelected: (str: string) => void;
@@ -7,7 +8,7 @@ export class SelectTemplateModal extends FuzzySuggestModal<string> {
         super(app);
 
 		this.onTemplateSelected = onTemplateSelected;
-		this.setPlaceholder("Введите имя шаблона...");
+		this.setPlaceholder(SEARCH_PLACEHOLDER);
     }
 
 	getItems(): string[] {

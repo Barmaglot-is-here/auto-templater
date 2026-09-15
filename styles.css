@@ -1,0 +1,53 @@
+.date-sorter-template-list {
+	margin-top: var(--size-4-6);
+}
+
+.date-sorter-template-list-items {
+	border-radius: var(--setting-items-radius);
+	overflow: hidden;
+	background-color: var(--setting-items-background);
+}
+
+.date-sorter-template-list-item {
+	position: relative;
+	display: flex;
+	align-items: center;
+	padding: var(--setting-items-padding-y) var(--setting-items-padding-x);
+}
+
+.date-sorter-template-list-item:not(:last-child)::after {
+	content: "";
+	position: absolute;
+	left: var(--setting-items-padding-x);
+	right: var(--setting-items-padding-x);
+	bottom: 0;
+	border-top: var(--setting-items-divider-width) solid var(--background-modifier-border);
+}
+
+.date-sorter-template-list-item-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.date-sorter-template-list-folder {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.date-sorter-template-list-template {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.date-sorter-template-list-delete {
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.date-sorter-template-list-delete:hover {
+	color: var(--text-error);
+}
