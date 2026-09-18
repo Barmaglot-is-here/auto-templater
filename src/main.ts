@@ -1,8 +1,8 @@
-import {Plugin, MenuItem, TAbstractFile, TFolder, TFile, Notice, EventRef} from 'obsidian';
+import {Plugin, MenuItem, TAbstractFile, TFolder, TFile, Notice, EventRef, Menu} from 'obsidian';
 import {DateSorterPluginSettings, SettingTab} from "./settings";
 import TemplateModule from 'template-module'
 import { SelectTemplateModal } from 'select-template-modal';
-import PluginData, { FolderList } from 'plugin-data';
+import PluginData, { FolderList, PluginDataState } from 'plugin-data';
 
 export default class DateSorterPlugin extends Plugin {
 	public data!: PluginData;
@@ -31,7 +31,7 @@ export default class DateSorterPlugin extends Plugin {
 	}
 
 	private async loadPluginData() {
-		const data = await this.loadData();
+		const data = await this.loadData() as Partial<PluginDataState> | undefined;
 
 		this.data = new PluginData(data ?? {});
 	}
@@ -107,14 +107,16 @@ export default class DateSorterPlugin extends Plugin {
 
 		this.registerEvent(
 			this.data.on('folder-change', () => {
-				this.savePluginData();
+				void this.savePluginData();
 			})
 		);
 	}
 
-	private onFileMenuShow(menu: any, file: TAbstractFile) {
+	private onFileMenuShow = (menu: unknown, file: TAbstractFile) => {
 		if (!(file instanceof TFolder))
 			return;
+
+		const obsidianMenu = menu as Menu;
 
 		if (this.folderList[file.path] == null) {
 			const includeFolderMenuItem = (item: MenuItem) => {
@@ -127,7 +129,7 @@ export default class DateSorterPlugin extends Plugin {
 					}).open());
 			};
 
-			menu.addItem(includeFolderMenuItem);				
+			obsidianMenu.addItem(includeFolderMenuItem);
 		}
 		else {
 			const excludeFolderMenuItem = (item: MenuItem) => {
@@ -137,7 +139,7 @@ export default class DateSorterPlugin extends Plugin {
 				item.onClick(() => this.data.excludeFolder(file.path));
 			};
 
-			menu.addItem(excludeFolderMenuItem);
+			obsidianMenu.addItem(excludeFolderMenuItem);
 		}
 	}
 
@@ -151,7 +153,7 @@ export default class DateSorterPlugin extends Plugin {
 
 		this.folderList[newPath] = templatePath;
 
-		this.savePluginData();
+		void this.savePluginData();
 	}
 
 	private onFileRename(oldPath: string, newPath: string) {
@@ -168,7 +170,7 @@ export default class DateSorterPlugin extends Plugin {
 
 				new Notice("Обновлён путь до шаблона: " + newPath);
 
-				this.savePluginData();
+				void this.savePluginData();
 			}
 		});
 	}
@@ -193,7 +195,7 @@ export default class DateSorterPlugin extends Plugin {
 			}
 		});
 
-		this.savePluginData();
+		void this.savePluginData();
 	}
 
 	private async onFileCreate(file: TFile) {
