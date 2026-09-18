@@ -1,8 +1,8 @@
-import {Plugin, MenuItem, TAbstractFile, TFolder, TFile, Notice, EventRef} from 'obsidian';
+import {Plugin, MenuItem, TAbstractFile, TFolder, TFile, Notice, EventRef, Menu} from 'obsidian';
 import {DateSorterPluginSettings, SettingTab} from "./settings";
 import TemplateModule from 'template-module'
 import { SelectTemplateModal } from 'select-template-modal';
-import PluginData, { FolderList } from 'plugin-data';
+import PluginData, { FolderList, PluginDataState } from 'plugin-data';
 
 export default class DateSorterPlugin extends Plugin {
 	public data!: PluginData;
@@ -31,7 +31,7 @@ export default class DateSorterPlugin extends Plugin {
 	}
 
 	private async loadPluginData() {
-		const data = await this.loadData() as Partial<import("plugin-data").PluginDataState> | undefined;
+		const data = await this.loadData() as Partial<PluginDataState> | undefined;
 
 		this.data = new PluginData(data ?? {});
 	}
@@ -116,8 +116,7 @@ export default class DateSorterPlugin extends Plugin {
 		if (!(file instanceof TFolder))
 			return;
 
-		// We assume `menu` is a Menu instance, but since its type is not exported or we avoid importing it, we cast it
-		const obsidianMenu = menu as import("obsidian").Menu;
+		const obsidianMenu = menu as Menu;
 
 		if (this.folderList[file.path] == null) {
 			const includeFolderMenuItem = (item: MenuItem) => {
