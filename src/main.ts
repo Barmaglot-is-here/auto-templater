@@ -31,7 +31,7 @@ export default class DateSorterPlugin extends Plugin {
 	}
 
 	private async loadPluginData() {
-		const data = await this.loadData();
+		const data = await this.loadData() as Partial<import("plugin-data").PluginDataState> | undefined;
 
 		this.data = new PluginData(data ?? {});
 	}
@@ -107,14 +107,17 @@ export default class DateSorterPlugin extends Plugin {
 
 		this.registerEvent(
 			this.data.on('folder-change', () => {
-				this.savePluginData();
+				void this.savePluginData();
 			})
 		);
 	}
 
-	private onFileMenuShow(menu: any, file: TAbstractFile) {
+	private onFileMenuShow = (menu: unknown, file: TAbstractFile) => {
 		if (!(file instanceof TFolder))
 			return;
+
+		// We assume `menu` is a Menu instance, but since its type is not exported or we avoid importing it, we cast it
+		const obsidianMenu = menu as import("obsidian").Menu;
 
 		if (this.folderList[file.path] == null) {
 			const includeFolderMenuItem = (item: MenuItem) => {
@@ -127,7 +130,7 @@ export default class DateSorterPlugin extends Plugin {
 					}).open());
 			};
 
-			menu.addItem(includeFolderMenuItem);				
+			obsidianMenu.addItem(includeFolderMenuItem);
 		}
 		else {
 			const excludeFolderMenuItem = (item: MenuItem) => {
@@ -137,7 +140,7 @@ export default class DateSorterPlugin extends Plugin {
 				item.onClick(() => this.data.excludeFolder(file.path));
 			};
 
-			menu.addItem(excludeFolderMenuItem);
+			obsidianMenu.addItem(excludeFolderMenuItem);
 		}
 	}
 
@@ -151,7 +154,7 @@ export default class DateSorterPlugin extends Plugin {
 
 		this.folderList[newPath] = templatePath;
 
-		this.savePluginData();
+		void this.savePluginData();
 	}
 
 	private onFileRename(oldPath: string, newPath: string) {
@@ -168,7 +171,7 @@ export default class DateSorterPlugin extends Plugin {
 
 				new Notice("Обновлён путь до шаблона: " + newPath);
 
-				this.savePluginData();
+				void this.savePluginData();
 			}
 		});
 	}
@@ -193,7 +196,7 @@ export default class DateSorterPlugin extends Plugin {
 			}
 		});
 
-		this.savePluginData();
+		void this.savePluginData();
 	}
 
 	private async onFileCreate(file: TFile) {

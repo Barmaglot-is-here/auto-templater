@@ -47,10 +47,7 @@ export class SettingTab extends PluginSettingTab {
 			cls: 'date-sorter-template-list'
 		});
 
-		section.createEl('h3', {
-			text: 'Привязанные шаблоны',
-			cls: 'setting-item-heading'
-		});
+		new Setting(section).setName("Привязанные шаблоны").setHeading();
 
 		const list = section.createDiv({
 			cls: 'date-sorter-template-list-items'
@@ -82,7 +79,7 @@ export class SettingTab extends PluginSettingTab {
 			deleteButton.setAttribute('aria-label', 'Удалить');
 			setIcon(deleteButton, 'trash-2');
 
-			deleteButton.addEventListener('click', async () => {
+			deleteButton.addEventListener('click', () => {
 				this.pluginData.excludeFolder(folderPath);
 
 				item.remove();
