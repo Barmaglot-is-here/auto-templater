@@ -27,12 +27,17 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Create ZIP
+              run: zip auto-templater.zip main.js manifest.json styles.css
+
       - name: Release
         uses: softprops/action-gh-release@v3
         with:
+          fail_on_unmatched_files: true
           files: |
             main.js
             manifest.json
             styles.css
+            auto-templater.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
